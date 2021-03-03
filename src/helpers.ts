@@ -771,8 +771,8 @@ export function extractParticipantsFromSeeding(tournamentId: number, seeding: Se
  * @param database The participants stored in the database.
  * @param positions An optional list of positions (seeds) for a manual ordering.
  */
-export function mapParticipantsNamesToDatabase(seeding: Seeding, database: Participant[], positions?: number[]): ParticipantSlot[] {
-    return mapParticipantsToDatabase('name', seeding, database, positions);
+export async function mapParticipantsNamesToDatabase(seeding: Seeding, database: Participant[], positions?: number[]): Promise<ParticipantSlot[]> {
+    return await mapParticipantsToDatabase('name', seeding, database, positions);
 }
 
 /**
@@ -782,8 +782,8 @@ export function mapParticipantsNamesToDatabase(seeding: Seeding, database: Parti
  * @param database The participants stored in the database.
  * @param positions An optional list of positions (seeds) for a manual ordering.
  */
-export function mapParticipantsIdsToDatabase(seeding: Seeding, database: Participant[], positions?: number[]): ParticipantSlot[] {
-    return mapParticipantsToDatabase('id', seeding, database, positions);
+export async function mapParticipantsIdsToDatabase(seeding: Seeding, database: Participant[], positions?: number[]): Promise<ParticipantSlot[]> {
+    return await mapParticipantsToDatabase('id', seeding, database, positions);
 }
 
 /**
@@ -794,16 +794,30 @@ export function mapParticipantsIdsToDatabase(seeding: Seeding, database: Partici
  * @param database The participants stored in the database.
  * @param positions An optional list of positions (seeds) for a manual ordering.
  */
-export function mapParticipantsToDatabase(prop: keyof Participant, seeding: Seeding, database: Participant[], positions?: number[]): ParticipantSlot[] {
-    const slots = seeding.map((slot, i) => {
-        if (slot === null) return null; // BYE.
+export async function mapParticipantsToDatabase(prop: keyof Participant, seeding: Seeding, database: Participant[], positions?: number[]): Promise<ParticipantSlot[]> {
+   try{
 
-        const found = database.find(participant => participant[prop] === slot);
-        if (!found) throw Error(`Participant ${prop} not found in database.`);
+  
+    const slots = await Promise.all(seeding.map(async  (slot, i) => {
+            return new Promise((resolve, reject) => {
+                if (slot === null)  resolve(null); // BYE.
+                const found = database.find(participant => participant[prop] === slot);
+                //console.log("🚀 ~ file: helpers.ts ~ line 802 ~ returnnewPromise ~ found", found)
+                if (!found) throw Error(`Participant ${prop} not found in database.`);
+                 resolve({ id: found.id, position: i + 1 });
+              }) ;
+     
+    })) as ParticipantSlot[];
+    //console.log("🚀 ~ file: helpers.ts ~ line 811 ~ slots ~ slots", slots);
 
-        return { id: found.id, position: i + 1 };
-    });
 
+    // const slots = seeding.map(  (slot, i) => {
+ 
+    //         if (slot === null) return null; // BYE.
+    //         const found = database.find(participant => participant[prop] === slot);
+    //         if (!found) throw Error(`Participant ${prop} not found in database.`);
+    //          return { id: found.id, position: i + 1 };
+    //       }) ;
     if (!positions)
         return slots;
 
@@ -811,6 +825,11 @@ export function mapParticipantsToDatabase(prop: keyof Participant, seeding: Seed
         throw Error('Not enough seeds in at least one group of the manual ordering.');
 
     return positions.map(position => slots[position - 1]); // position = i + 1
+
+}catch(e){
+    console.log('eeeeeeeeeeeee ',e)
+    return [];
+}
 }
 
 /**
